@@ -1,5 +1,7 @@
 import FirebaseSignallingClient from "./FirebaseSignalingClient"
 
+const INITIAL_AUDIO_ENABLED = false
+
 export default class RtcClient {
     constructor(remoteVideoRef, setRtcClient) {
         const config = {
@@ -12,6 +14,10 @@ export default class RtcClient {
         this.remoteVideoRef = remoteVideoRef
         this._setRtcClient = setRtcClient
         this.mediaStream = null
+    }
+
+    get initialAudioMuted() {
+        return !INITIAL_AUDIO_ENABLED
     }
 
     setRtcClient() {
@@ -39,6 +45,7 @@ export default class RtcClient {
     }
 
     addAudioTrack() {
+        this.audioTrack.enabled = INITIAL_AUDIO_ENABLED
         this.rtcPeerConnection.addTrack(this.audioTrack, this.mediaStream)
     }
 
@@ -52,6 +59,11 @@ export default class RtcClient {
 
     get videoTrack() {
         return this.mediaStream.getVideoTracks()[0]
+    }
+
+    toggleAudio() {
+        this.audioTrack.enabled = !this.audioTrack.enabled
+        this.setRtcClient()
     }
 
     async offer() {
@@ -101,7 +113,7 @@ export default class RtcClient {
             this.setOntrack()
             await this.setRemoteDescription(sessionDescription)
             const answer = await this.rtcPeerConnection.createAnswer()
-            this.rtcPeerConnection.setLocalDescription(answer)
+            await this.rtcPeerConnection.setLocalDescription(answer)
             this.sendAnswer()
         } catch (error) {
             console.error(error)
@@ -128,14 +140,31 @@ export default class RtcClient {
         this.firebaseSignallingClient.sendAnswer(this.localDescription)
     }
 
+    async saveReceivedSessionDescription(sessionDescription) {
+        try {
+            await this.setRemoteDescription(sessionDescription)
+        } catch (error) {
+            console.error(error)
+        }
+    }
+
     get localDescription() {
-        return this.rtcPeerConnection.localDescription
+        return this.rtcPeerConnection.localDescription.toJSON()
+    }
+
+    async addIceCandidate(candidate) {
+        try {
+            const iceCandidate = new RTCIceCandidate(candidate)
+            await this.rtcPeerConnection.addIceCandidate(iceCandidate)
+        } catch (error) {
+            console.error(error)
+        }
     }
 
     setOnicecandidateCallback() {
-        this.rtcPeerConnection.onicecandidate = ({candidate}) => {
+        this.rtcPeerConnection.onicecandidate = async ({candidate}) => {
             if (candidate) {
-                console.log({ candidate })
+                await this.firebaseSignallingClient.sendCandidate(candidate.toJSON())
             }
         }
     }
@@ -151,12 +180,19 @@ export default class RtcClient {
                 const data = snapshot.val()
                 if (data === null) return
 
-                const { sender, sessionDescription, type } = data
+                const { candidate, sender, sessionDescription, type } = data
                 switch(type) {
                     case 'offer':
                         await this.answer(sender, sessionDescription)
                         break
+                    case 'answer':
+                        await this.saveReceivedSessionDescription(sessionDescription)
+                        break
+                    case 'candidate':
+                        await this.addIceCandidate(candidate)
+                        break
                     default:
+                        this.setRtcClient()
                         break
                 }
 

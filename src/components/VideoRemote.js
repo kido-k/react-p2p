@@ -5,11 +5,15 @@ import Video from './Video'
 const VideoRemote = ({ rtcClient }) => {
   const videoRef = rtcClient.remoteVideoRef
 
+  if (rtcClient.localPeerName === '') return <></>
+  if (rtcClient.remotePeerName === '') return <></>
+
   return <Video
           isLocal={false} 
           name={rtcClient.remotePeerName} 
-          videoRef={videoRef}>
-        </Video>
+          rtcClient={rtcClient}
+          videoRef={videoRef}
+        />
 }
 
 export default VideoRemote

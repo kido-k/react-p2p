@@ -3,7 +3,6 @@ import 'firebase/database'
 
 export default class FirebaseSignallingClient {
     constructor() {
-        console.log(process.env)
         const {
             REACT_APP_FIREBASE_API_KEY,
             REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -57,5 +56,13 @@ export default class FirebaseSignallingClient {
 
     async remove(path) {
         await this.database.ref(path).remove();
+    }
+
+    async sendCandidate(candidate) {
+        await this.targetRef.set({
+            type: 'candidate',
+            sender: this.localPeerName,
+            candidate
+        })   
     }
 }

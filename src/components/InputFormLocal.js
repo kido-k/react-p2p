@@ -81,10 +81,10 @@ export default function SignIn({ rtcClient }) {
             onChange={(e) => setName(e.target.value)}
             onCompositionStart={() => setIsComposed(true)}
             onCompositionEnd={() => setIsComposed(false)}
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (isComposed) return
               if (e.target.value === '') return
-              if (e.key === 'Enter') initializeLocalPeer(e)
+              if (e.key === 'Enter') await initializeLocalPeer(e)
             }}
           />
           <Button
@@ -94,7 +94,7 @@ export default function SignIn({ rtcClient }) {
             fullWidth
             className={classes.submit}
             disabled={disabled}
-            onClick={(e) => initializeLocalPeer(e)}
+            onClick={async(e) => await initializeLocalPeer(e)}
           >
             決定
           </Button>
